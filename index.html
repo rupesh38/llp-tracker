@@ -306,7 +306,8 @@ const CATS=["All","GST","Income Tax","MCA/ROC","Labour","State Tax","Audit"];
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-const S={fy:currFY(),view:"month",mi:currFYMi(),fFreq:"All",fCat:"All",hideNA:false,active:{},data:{}};
+const _prefs=JSON.parse(localStorage.getItem("llp_prefs")||"{}");
+const S={fy:currFY(),view:"month",mi:currFYMi(),fFreq:_prefs.fFreq||"All",fCat:_prefs.fCat||"All",hideNA:_prefs.hideNA||false,active:{},data:{}};
 
 function currFY(){const d=new Date(),y=d.getFullYear(),m=d.getMonth();return m>=3?`${y}-${String(y+1).slice(-2)}`:`${y-1}-${String(y).slice(-2)}`;}
 function currFYMi(){const m=new Date().getMonth();return m>=3?m-3:m+9;}
@@ -799,16 +800,17 @@ function rYStats(){
   <div class="scard"><div class="slbl">% complete</div><div class="snum c-don">${pct}%</div></div>`;
 }
 function rFilters(){
-  const fc=FREQS.map(f=>`<button class="fc${S.fFreq===f?" on":""}" onclick="S.fFreq='${f}';render()">${f}</button>`).join("");
-  const cc=CATS.map(c=>`<button class="fc${S.fCat===c?" on":""}" onclick="S.fCat='${c}';render()">${c}</button>`).join("");
+  const fc=FREQS.map(f=>`<button class="fc${S.fFreq===f?" on":""}" onclick="S.fFreq='${f}';savePrefs();render()">${f}</button>`).join("");
+  const cc=CATS.map(c=>`<button class="fc${S.fCat===c?" on":""}" onclick="S.fCat='${c}';savePrefs();render()">${c}</button>`).join("");
   return`<div class="fchips">${fc}</div><div class="fsep"></div><div class="fchips">${cc}</div>
   <div class="fright"><span class="flbl">Hide inactive</span>
-  <label class="tswitch"><input type="checkbox" ${S.hideNA?"checked":""} onchange="S.hideNA=this.checked;render()"><span class="tslider"></span></label></div>`;
+  <label class="tswitch"><input type="checkbox" ${S.hideNA?"checked":""} onchange="S.hideNA=this.checked;savePrefs();render()"><span class="tslider"></span></label></div>`;
 }
 
 // ═══════════════════════════════════════════════════════
 // EVENTS
 // ═══════════════════════════════════════════════════════
+function savePrefs(){localStorage.setItem("llp_prefs",JSON.stringify({fFreq:S.fFreq,fCat:S.fCat,hideNA:S.hideNA}));}
 function render(){if(S.view==="month")renderMonth();else renderYear();}
 function setView(v){
   S.view=v;
