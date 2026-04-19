@@ -335,30 +335,58 @@ const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
 
 function hasClientId(){return GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_ID!=="YOUR_GOOGLE_CLIENT_ID";}
 
+async function onSignedIn(resp){
+  if(resp.error){showMsg("Sign-in failed: "+resp.error,true);return;}
+  gToken=resp.access_token;
+  try{
+    const r=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:`Bearer ${gToken}`}});
+    const u=await r.json();gUser=u.email||"Connected";
+    localStorage.setItem("llp_drive_user",gUser);
+  }catch{gUser=localStorage.getItem("llp_drive_user")||"Connected";}
+  localStorage.setItem("llp_drive_connected","1");
+  updateAuthUI();
+  setDriveStatus("syncing","Loading from Drive…");
+  await loadFromDrive();
+}
+
 function signIn(){
   if(!hasClientId()){alert("Google Client ID not configured. Please follow the instructions in SETUP.md.");return;}
   const client=google.accounts.oauth2.initTokenClient({
-    client_id:GOOGLE_CLIENT_ID,
-    scope:DRIVE_SCOPE,
+    client_id:GOOGLE_CLIENT_ID,scope:DRIVE_SCOPE,callback:onSignedIn
+  });
+  client.requestAccessToken({prompt:"consent"});
+}
+
+function tryAutoConnect(){
+  if(!hasClientId()||!localStorage.getItem("llp_drive_connected"))return;
+  gUser=localStorage.getItem("llp_drive_user")||"Connected";
+  // Show connecting state immediately so UI feels fast
+  updateAuthUI();
+  setDriveStatus("syncing","Reconnecting…");
+  const client=google.accounts.oauth2.initTokenClient({
+    client_id:GOOGLE_CLIENT_ID,scope:DRIVE_SCOPE,
+    prompt:"",  // silent — no popup
     callback:async(resp)=>{
-      if(resp.error){showMsg("Sign-in failed: "+resp.error,true);return;}
-      gToken=resp.access_token;
-      // Get user info
-      try{
-        const r=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:`Bearer ${gToken}`}});
-        const u=await r.json();gUser=u.email||"Connected";
-      }catch{gUser="Connected";}
-      updateAuthUI();
-      setDriveStatus("syncing","Loading from Drive…");
-      await loadFromDrive();
+      if(resp.error||!resp.access_token){
+        // Silent auth failed — clear and show connect button
+        gToken=null;gUser="";
+        localStorage.removeItem("llp_drive_connected");
+        localStorage.removeItem("llp_drive_user");
+        updateAuthUI();
+        document.getElementById("driveStatus").style.display="none";
+        return;
+      }
+      await onSignedIn(resp);
     }
   });
-  client.requestAccessToken();
+  client.requestAccessToken({prompt:""});
 }
 
 function signOut(){
   if(gToken)try{google.accounts.oauth2.revoke(gToken);}catch{}
   gToken=null;gUser="";driveFileIds={};
+  localStorage.removeItem("llp_drive_connected");
+  localStorage.removeItem("llp_drive_user");
   updateAuthUI();setDriveStatus("off","Not connected");
 }
 
@@ -854,6 +882,18 @@ if(!hasClientId())document.getElementById("setupBanner").style.display="flex";
 updateAuthUI();
 loadLocal(S.fy);
 render();
+
+// Auto-reconnect Drive once GIS library is ready
+function waitForGIS(){
+  if(typeof google!=="undefined"&&google.accounts){
+    tryAutoConnect();
+  } else {
+    setTimeout(waitForGIS,200);
+  }
+}
+if(hasClientId()&&localStorage.getItem("llp_drive_connected")){
+  waitForGIS();
+}
 </script>
 </body>
 </html>
