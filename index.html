@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LLP Tracker">
+<meta name="theme-color" content="#0f172a">
+<title>LLP Compliance Tracker</title>
+<link rel="manifest" href="./manifest.json">
+
+<!-- IMPORTANT: Replace YOUR_GOOGLE_CLIENT_ID below with your OAuth 2.0 Client ID -->
+<!-- See SETUP.md for instructions on how to get this -->
+<script>
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+</script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+#app{max-width:1520px;margin:0 auto}
+
+/* ── Setup banner ── */
+.setup-banner{background:#fef9c3;border-bottom:2px solid #fde047;padding:10px 20px;font-size:12px;color:#713f12;display:flex;align-items:center;gap:10px}
+.setup-banner strong{font-weight:600}
+.setup-banner a{color:#1d4ed8;text-decoration:underline;cursor:pointer}
+
+/* ── Header ── */
+.hdr{background:#0f172a;padding:11px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;flex-wrap:wrap}
+.hdr-title{font-size:15px;font-weight:600;color:#fff;white-space:nowrap}
+.fy-wrap{display:flex;align-items:center;gap:6px}
+.fy-label{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+.fy-sel{font-size:13px;font-weight:500;border:1px solid #334155;border-radius:6px;padding:4px 8px;background:#1e293b;color:#fff;cursor:pointer}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.autosave{font-size:11px;color:#4ade80;min-width:90px;text-align:right}
+.autosave.err{color:#f87171}
+
+/* Auth area */
+.auth-area{display:flex;align-items:center;gap:8px}
+.auth-user{font-size:11px;color:#94a3b8;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0}
+.auth-dot.off{background:#64748b}
+
+.btn{font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#334155;color:#e2e8f0}
+.btn-g{border-color:#3b82f6;background:#1d3461;color:#93c5fd}
+.btn-g:hover{background:#1e40af;color:#bfdbfe}
+.btn-arc{border-color:#1e3a5f;background:#1e293b;color:#60a5fa}
+.btn-arc:hover{background:#1e3a5f}
+.btn-danger{border-color:#7f1d1d;color:#fca5a5}
+.btn-danger:hover{background:#7f1d1d}
+
+/* ── Tabs ── */
+.tabs{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;display:flex}
+.tab{font-size:13px;padding:10px 16px;border:none;background:none;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:#1d4ed8;border-bottom-color:#1d4ed8;font-weight:500}
+
+/* ── Main ── */
+.main{padding:16px 20px}
+
+/* ── Month nav ── */
+.mnav{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;flex-wrap:wrap}
+.mchip{font-size:12px;font-weight:500;padding:5px 11px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.mchip:hover{border-color:#cbd5e1;background:#f8fafc}
+.mchip.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.mchip.today{font-weight:700}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.d-over{background:#ef4444}.d-soon{background:#f97316}.d-done{background:#22c55e}.d-part{background:#cbd5e1}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:600px){.stats{grid-template-columns:repeat(3,1fr)}}
+.scard{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px}
+.slbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.snum{font-size:23px;font-weight:600}
+.c-tot{color:#0f172a}.c-don{color:#15803d}.c-prg{color:#1d4ed8}.c-son{color:#c2410c}.c-ovr{color:#dc2626}
+
+/* ── Filters ── */
+.fbar{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.fchips{display:flex;gap:3px;flex-wrap:wrap}
+.fc{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer}
+.fc:hover{background:#f8fafc}.fc.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.fsep{width:1px;height:20px;background:#e2e8f0;flex-shrink:0}
+.fright{margin-left:auto;display:flex;align-items:center;gap:7px}
+.flbl{font-size:11px;color:#64748b}
+.tswitch{position:relative;display:inline-block;width:34px;height:18px}
+.tswitch input{opacity:0;width:0;height:0}
+.tslider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:9px;transition:.15s}
+.tslider::before{position:absolute;content:"";height:12px;width:12px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.15s}
+.tswitch input:checked+.tslider{background:#0f172a}
+.tswitch input:checked+.tslider::before{transform:translateX(16px)}
+
+/* ── Attention banner ── */
+.attn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 13px;margin-bottom:12px;font-size:12px;color:#991b1b;display:flex;align-items:flex-start;gap:7px;line-height:1.5}
+.attn a{color:#1d4ed8;cursor:pointer;text-decoration:underline}
+
+/* ── Offline banner ── */
+.offline-bar{background:#1e293b;color:#94a3b8;font-size:11px;padding:5px 20px;text-align:center;display:none}
+.offline-bar.show{display:block}
+
+/* ── Table ── */
+.twrap{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;overflow-x:auto}
+table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:860px}
+thead th{background:#f8fafc;color:#64748b;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+tbody td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;font-size:12px;color:#334155}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#f8fafc!important}
+
+.r-over td{background:#fef2f2!important}
+.r-over td:first-child{border-left:3px solid #ef4444;padding-left:7px}
+.r-soon td{background:#fff7ed!important}
+.r-soon td:first-child{border-left:3px solid #fb923c;padding-left:7px}
+.r-done td:first-child{border-left:3px solid #22c55e;padding-left:7px}
+.r-late td{background:#fffbeb!important}
+.r-late td:first-child{border-left:3px solid #f59e0b;padding-left:7px}
+.r-na{opacity:.33}
+.r-na td{background:transparent!important}
+.r-na:hover td{background:transparent!important}
+.sec-row td{background:#f1f5f9!important;color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:5px 10px;border-bottom:1px solid #e2e8f0}
+
+.iname{font-weight:500;color:#0f172a;line-height:1.3}
+.isub{font-size:10px;color:#94a3b8;margin-top:2px;line-height:1.3}
+.ftag{font-size:10px;font-weight:600;color:#64748b}
+.cbadge{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #e2e8f0;color:#64748b;white-space:nowrap;display:inline-block}
+.d-nor{font-size:11px;color:#64748b}
+.d-son{font-size:11px;color:#c2410c;font-weight:600}
+.d-ovr{font-size:11px;color:#dc2626;font-weight:600}
+.dsub{font-size:10px;color:#94a3b8;margin-top:1px}
+
+.ssel{font-size:11px;border:1px solid #e2e8f0;border-radius:5px;padding:3px 5px;background:#fff;color:#334155;cursor:pointer;width:100%;max-width:108px}
+.ss-done{border-color:#86efac;color:#15803d;background:#f0fdf4}
+.ss-inprog{border-color:#93c5fd;color:#1d4ed8;background:#eff6ff}
+.ss-na{color:#94a3b8}
+
+.dinput{font-size:11px;border:1px solid #e2e8f0;border-radius:5px;padding:3px 5px;background:#fff;color:#334155;width:100%;max-width:118px}
+.dinput:focus{outline:none;border-color:#93c5fd}
+
+.tinput{font-size:11px;border:none;background:transparent;color:#334155;width:100%;outline:none;font-family:inherit}
+.tinput::placeholder{color:#cbd5e1}
+.tinput.doc{color:#1d4ed8;text-decoration:underline;text-underline-offset:2px}
+.tinput.doc:placeholder-shown{text-decoration:none;color:#cbd5e1}
+
+.act-cell{text-align:center}
+.mtog{position:relative;display:inline-block;width:28px;height:16px}
+.mtog input{opacity:0;width:0;height:0}
+.mslider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:8px;transition:.15s}
+.mslider::before{position:absolute;content:"";height:10px;width:10px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.15s}
+.mtog input:checked+.mslider{background:#22c55e}
+.mtog input:checked+.mslider::before{transform:translateX(12px)}
+
+.empty{padding:3rem;text-align:center;color:#94a3b8;font-size:13px}
+
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;padding:6px 0}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b}
+.ls{width:16px;height:12px;border-radius:3px;flex-shrink:0}
+.ls-ovr{background:#fef2f2;border-left:3px solid #ef4444}
+.ls-son{background:#fff7ed;border-left:3px solid #fb923c}
+.ls-don{border:1px solid #e2e8f0;border-left:3px solid #22c55e}
+.ls-lat{background:#fffbeb;border-left:3px solid #f59e0b}
+.ls-na{background:#f8fafc;border:1px solid #e2e8f0;opacity:.4}
+
+/* ── Year overview ── */
+.ywrap{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;overflow-x:auto}
+.ytbl{border-collapse:collapse;min-width:900px;width:100%}
+.ytbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748b;padding:6px 3px;text-align:center;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+.ytbl th.yitem-th{text-align:left;padding-left:12px;min-width:210px;max-width:210px}
+.ytbl th.yform-th{min-width:74px;max-width:74px;font-size:10px}
+.ytbl th.qlbl{font-size:9px;color:#94a3b8;background:#f8fafc}
+.ytbl td{padding:2px 3px;border-bottom:1px solid #f8fafc}
+.ytbl td.yi{padding:5px 12px;font-size:11px;font-weight:500;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;border-right:1px solid #e2e8f0;vertical-align:middle}
+.ytbl td.yf{padding:5px 6px;font-size:10px;color:#94a3b8;white-space:nowrap;border-right:1px solid #f1f5f9;vertical-align:middle}
+.ytbl tr:hover td{background:#f8fafc!important}
+.ytbl tr.yr-na{opacity:.3}
+
+.hc{width:42px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;transition:filter .1s;margin:1px auto}
+.hc:hover{filter:brightness(.9)}
+.hpend{background:#f1f5f9;color:#94a3b8}
+.hprg{background:#dbeafe;color:#1e40af}
+.hdon{background:#dcfce7;color:#15803d}
+.hovr{background:#fee2e2;color:#dc2626}
+.hson{background:#ffedd5;color:#c2410c}
+.hna{background:#f1f5f9;color:#cbd5e1}
+.hnone{background:transparent;color:#e2e8f0;cursor:default}
+.hlat{background:#fef9c3;color:#854d0e}
+.qsep{border-left:2px solid #e2e8f0!important}
+.ysec td{background:#f8fafc!important;color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;border-bottom:1px solid #e2e8f0}
+
+/* Drive status */
+.drive-status{display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;padding:4px 10px;background:#1e293b;border-radius:6px;border:1px solid #334155}
+.drive-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
+.drive-dot.syncing{background:#fbbf24;animation:pulse 1s infinite}
+.drive-dot.err{background:#f87171}
+.drive-dot.off{background:#475569}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Loading overlay */
+.loading{position:fixed;inset:0;background:rgba(15,23,42,.7);display:flex;align-items:center;justify-content:center;z-index:999;font-size:14px;color:#fff;gap:10px}
+.spinner{width:20px;height:20px;border:2px solid #334155;border-top-color:#60a5fa;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Offline indicator -->
+  <div class="offline-bar" id="offlineBar">⚡ Offline mode — changes saved locally, will sync to Drive when reconnected</div>
+
+  <!-- Setup warning if Client ID not set -->
+  <div class="setup-banner" id="setupBanner" style="display:none">
+    ⚠ <strong>Google Client ID not configured.</strong> Drive sync is disabled. 
+    Open <code>index.html</code> and replace <code>YOUR_GOOGLE_CLIENT_ID</code> with your OAuth Client ID — 
+    see <strong>SETUP.md</strong> for step-by-step instructions.
+    The tracker still works locally without it.
+  </div>
+
+  <div class="hdr">
+    <span class="hdr-title">LLP Compliance Tracker</span>
+    <div class="fy-wrap">
+      <span class="fy-label">FY</span>
+      <select class="fy-sel" id="fysel" onchange="changeFY(this.value)">
+        <option value="2026-27">2026–27 (current)</option>
+        <option value="2025-26">2025–26</option>
+        <option value="2024-25">2024–25</option>
+        <option value="2023-24">2023–24</option>
+      </select>
+    </div>
+    <div class="hdr-right">
+      <span class="autosave" id="asmsg"></span>
+      <div class="auth-area" id="authArea">
+        <!-- populated by updateAuthUI() -->
+      </div>
+      <div class="drive-status" id="driveStatus" style="display:none">
+        <div class="drive-dot off" id="driveDot"></div>
+        <span id="driveLabel">Not connected</span>
+      </div>
+      <button class="btn btn-arc" onclick="archiveFY()">Export JSON</button>
+      <button class="btn" onclick="loadArchive()">Import JSON</button>
+      <input type="file" id="finput" accept=".json" style="display:none" onchange="handleFile(this)">
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-m" onclick="setView('month')">Month view</button>
+    <button class="tab" id="tab-y" onclick="setView('year')">Year overview</button>
+  </div>
+
+  <div class="main" id="main"></div>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// COMPLIANCE ITEMS
+// ═══════════════════════════════════════════════════════
+const ITEMS=[
+ {id:1, name:"TDS Payment",              sub:"Tax deducted at source",                        form:"Challan 281",  cat:"Income Tax", freq:"Monthly",    dueDay:7,  dueNote:"7th (30 Apr for Mar)"},
+ {id:2, name:"GST — GSTR-1",             sub:"Outward supply details",                         form:"GSTR-1",       cat:"GST",        freq:"Monthly",    dueDay:11, dueNote:"11th"},
+ {id:3, name:"GST — GSTR-3B",            sub:"Summary return with tax payment",                form:"GSTR-3B",      cat:"GST",        freq:"Monthly",    dueDay:20, dueNote:"20th"},
+ {id:4, name:"EPF contribution",          sub:"Employee & employer PF payment",                 form:"ECR",          cat:"Labour",     freq:"Monthly",    dueDay:15, dueNote:"15th"},
+ {id:5, name:"ESI contribution",          sub:"Employee State Insurance payment",               form:"ESI Challan",  cat:"Labour",     freq:"Monthly",    dueDay:15, dueNote:"15th"},
+ {id:6, name:"Professional Tax payment",  sub:"Telangana — deducted from employee salaries",    form:"PT Challan",   cat:"State Tax",  freq:"Monthly",    dueDay:10, dueNote:"10th"},
+ {id:7, name:"Professional Tax return",   sub:"Telangana — monthly employer return",            form:"Form VI",      cat:"State Tax",  freq:"Monthly",    dueDay:10, dueNote:"10th"},
+ {id:8, name:"TDS Return — non-salary",  sub:"Contractors, professionals, rent",               form:"Form 26Q",     cat:"Income Tax", freq:"Quarterly",
+   qd:[[3,15],[6,15],[9,15],[13,15]],    qdl:["15 Jul","15 Oct","15 Jan","15 May"]},
+ {id:9, name:"TDS Return — salary",      sub:"Employee salary deductions",                     form:"Form 24Q",     cat:"Income Tax", freq:"Quarterly",
+   qd:[[3,15],[6,15],[9,15],[13,31]],    qdl:["15 Jul","15 Oct","15 Jan","31 May"]},
+ {id:10,name:"TDS Return — foreign",     sub:"Payments to non-residents",                      form:"Form 27Q",     cat:"Income Tax", freq:"Quarterly",
+   qd:[[3,15],[6,15],[9,15],[13,15]],    qdl:["15 Jul","15 Oct","15 Jan","15 May"]},
+ {id:11,name:"TDS Certificate — Form 16A",sub:"Issue to deductees within 15 days of return",  form:"Form 16A",     cat:"Income Tax", freq:"Quarterly",
+   qd:[[3,30],[6,30],[9,30],[13,30]],    qdl:["30 Jul","30 Oct","30 Jan","30 May"]},
+ {id:12,name:"Advance Tax payment",      sub:"15% / 45% / 75% / 100% of estimated tax",       form:"Challan 280",  cat:"Income Tax", freq:"Quarterly",
+   qd:[[2,15],[5,15],[8,15],[11,15]],    qdl:["15 Jun","15 Sep","15 Dec","15 Mar"]},
+ {id:13,name:"GST — GSTR-1 (QRMP)",     sub:"Quarterly outward supply — QRMP filers",         form:"GSTR-1",       cat:"GST",        freq:"Quarterly",
+   qd:[[3,13],[6,13],[9,13],[12,13]],    qdl:["13 Jul","13 Oct","13 Jan","13 Apr"]},
+ {id:14,name:"GST — GSTR-3B (QRMP)",    sub:"Quarterly summary return — Hyderabad Group B",   form:"GSTR-3B",      cat:"GST",        freq:"Quarterly",
+   qd:[[3,24],[6,24],[9,24],[12,24]],    qdl:["24 Jul","24 Oct","24 Jan","24 Apr"]},
+ {id:15,name:"LLP Annual Return",        sub:"Partner details & contributions",                form:"Form 11",      cat:"MCA/ROC",    freq:"Annual",     dueOff:1,  dueDay:30, dueNote:"30 May"},
+ {id:16,name:"Statement of Account",     sub:"Balance sheet & solvency declaration",           form:"Form 8",       cat:"MCA/ROC",    freq:"Annual",     dueOff:6,  dueDay:30, dueNote:"30 Oct"},
+ {id:17,name:"Income Tax Return",        sub:"Non-audit: 31 Jul / Audit: 31 Oct",              form:"ITR-5",        cat:"Income Tax", freq:"Annual",     dueOff:6,  dueDay:31, dueNote:"31 Jul / 31 Oct"},
+ {id:18,name:"Tax Audit Report",         sub:"If turnover > ₹1Cr (biz) / ₹50L (prof.)",       form:"Form 3CB-3CD", cat:"Income Tax", freq:"Annual",     dueOff:5,  dueDay:30, dueNote:"30 Sep"},
+ {id:19,name:"Statutory Audit",          sub:"By practising CA — before ITR filing",           form:"Audit Report", cat:"Audit",      freq:"Annual",     dueOff:5,  dueDay:30, dueNote:"Before 30 Sep"},
+ {id:20,name:"GST Annual Return",        sub:"Consolidated annual GST return",                 form:"GSTR-9",       cat:"GST",        freq:"Annual",     dueOff:8,  dueDay:31, dueNote:"31 Dec"},
+ {id:21,name:"GST Reconciliation",       sub:"If turnover > ₹5 Cr",                           form:"GSTR-9C",      cat:"GST",        freq:"Annual",     dueOff:8,  dueDay:31, dueNote:"31 Dec"},
+ {id:22,name:"TDS Certificate — Form 16",sub:"Annual salary certificate to employees",         form:"Form 16",      cat:"Income Tax", freq:"Annual",     dueOff:2,  dueDay:15, dueNote:"15 Jun"},
+ {id:23,name:"DIR-3 KYC",               sub:"Annual KYC for each Designated Partner's DIN",   form:"DIR-3 KYC",    cat:"MCA/ROC",    freq:"Annual",     dueOff:5,  dueDay:30, dueNote:"30 Sep"},
+ {id:24,name:"MSME Payment Compliance",  sub:"Vendor payments > 45 days — if applicable",      form:"MSME Form 1",  cat:"MCA/ROC",    freq:"Annual",     dueOff:0,  dueDay:30, dueNote:"30 Apr / 31 Oct"},
+ {id:25,name:"EPF Annual Return",        sub:"Annual Provident Fund return",                   form:"Form 3A/6A",   cat:"Labour",     freq:"Annual",     dueOff:0,  dueDay:30, dueNote:"30 Apr"},
+ {id:26,name:"PT Annual Return",         sub:"Telangana — annual employer PT return",          form:"Form V",       cat:"State Tax",  freq:"Annual",     dueOff:11, dueDay:31, dueNote:"31 Mar"},
+ {id:27,name:"Change in LLP Agreement",  sub:"File within 30 days of any agreement change",   form:"Form 3",       cat:"MCA/ROC",    freq:"Event-based",dueNote:"Within 30 days"},
+ {id:28,name:"Appointment / Resignation",sub:"Designated partner change notification",          form:"Form 4",       cat:"MCA/ROC",    freq:"Event-based",dueNote:"Within 30 days"},
+ {id:29,name:"Change of Registered Address",sub:"LLP registered office change",               form:"Form 15",      cat:"MCA/ROC",    freq:"Event-based",dueNote:"Within 30 days"},
+ {id:30,name:"GST Registration Amendment",sub:"Address, trade name, partner change",          form:"GST REG-14",   cat:"GST",        freq:"Event-based",dueNote:"Within 15 days"},
+ {id:31,name:"TDS on Property Purchase", sub:"If LLP purchases property > ₹50L",              form:"Form 26QB",    cat:"Income Tax", freq:"Event-based",dueNote:"Within 30 days of deduction"},
+];
+
+const MN=["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
+const QM={0:"Q1",1:"Q1",2:"Q1",3:"Q2",4:"Q2",5:"Q2",6:"Q3",7:"Q3",8:"Q3",9:"Q4",10:"Q4",11:"Q4"};
+const QI={Q1:0,Q2:1,Q3:2,Q4:3};
+const FREQS=["All","Monthly","Quarterly","Annual","Event-based"];
+const CATS=["All","GST","Income Tax","MCA/ROC","Labour","State Tax","Audit"];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const S={fy:currFY(),view:"month",mi:currFYMi(),fFreq:"All",fCat:"All",hideNA:false,active:{},data:{}};
+
+function currFY(){const d=new Date(),y=d.getFullYear(),m=d.getMonth();return m>=3?`${y}-${String(y+1).slice(-2)}`:`${y-1}-${String(y).slice(-2)}`;}
+function currFYMi(){const m=new Date().getMonth();return m>=3?m-3:m+9;}
+function fyStart(fy){return parseInt(fy);}
+
+// ═══════════════════════════════════════════════════════
+// LOCAL STORAGE (always kept as cache / offline fallback)
+// ═══════════════════════════════════════════════════════
+function skey(fy){return`llp_${fy}`;}
+function loadLocal(fy){
+  try{const r=localStorage.getItem(skey(fy));if(r){const d=JSON.parse(r);S.active=d.active||{};S.data=d.data||{};}else{S.active={};S.data={};}}catch{S.active={};S.data={};}
+}
+function saveLocal(){
+  localStorage.setItem(skey(S.fy),JSON.stringify({active:S.active,data:S.data}));
+}
+
+// ═══════════════════════════════════════════════════════
+// GOOGLE DRIVE SYNC
+// ═══════════════════════════════════════════════════════
+let gToken=null;
+let gUser="";
+let driveFileIds={};
+let saveTimer=null;
+let isSyncing=false;
+const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
+
+function hasClientId(){return GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_ID!=="YOUR_GOOGLE_CLIENT_ID";}
+
+function signIn(){
+  if(!hasClientId()){alert("Google Client ID not configured. Please follow the instructions in SETUP.md.");return;}
+  const client=google.accounts.oauth2.initTokenClient({
+    client_id:GOOGLE_CLIENT_ID,
+    scope:DRIVE_SCOPE,
+    callback:async(resp)=>{
+      if(resp.error){showMsg("Sign-in failed: "+resp.error,true);return;}
+      gToken=resp.access_token;
+      // Get user info
+      try{
+        const r=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:`Bearer ${gToken}`}});
+        const u=await r.json();gUser=u.email||"Connected";
+      }catch{gUser="Connected";}
+      updateAuthUI();
+      setDriveStatus("syncing","Loading from Drive…");
+      await loadFromDrive();
+    }
+  });
+  client.requestAccessToken();
+}
+
+function signOut(){
+  if(gToken)try{google.accounts.oauth2.revoke(gToken);}catch{}
+  gToken=null;gUser="";driveFileIds={};
+  updateAuthUI();setDriveStatus("off","Not connected");
+}
+
+function updateAuthUI(){
+  const el=document.getElementById("authArea");
+  if(!hasClientId()){el.innerHTML="";return;}
+  if(gToken){
+    el.innerHTML=`<div class="auth-dot"></div><span class="auth-user">${h(gUser)}</span><button class="btn btn-danger" onclick="signOut()">Sign out</button>`;
+    document.getElementById("driveStatus").style.display="flex";
+  } else {
+    el.innerHTML=`<button class="btn btn-g" onclick="signIn()">🔗 Connect Google Drive</button>`;
+    document.getElementById("driveStatus").style.display="none";
+  }
+}
+
+function setDriveStatus(state,label){
+  const dot=document.getElementById("driveDot");
+  const lbl=document.getElementById("driveLabel");
+  if(!dot||!lbl)return;
+  dot.className="drive-dot"+(state==="syncing"?" syncing":state==="err"?" err":state==="off"?" off":"");
+  lbl.textContent=label;
+}
+
+async function driveReq(path,opts={}){
+  if(!gToken)return null;
+  const r=await fetch(`https://www.googleapis.com/drive/v3/${path}`,{
+    ...opts,headers:{Authorization:`Bearer ${gToken}`,...(opts.headers||{})}
+  });
+  if(r.status===401){gToken=null;updateAuthUI();setDriveStatus("err","Session expired — reconnect");return null;}
+  return r;
+}
+
+function driveName(fy){return`LLP_Compliance_FY${fy}.json`;}
+
+async function findDriveFile(fy){
+  const name=driveName(fy);
+  const r=await driveReq(`files?q=name='${name}' and trashed=false&fields=files(id,name)&spaces=drive`);
+  if(!r)return null;
+  const d=await r.json();
+  return(d.files&&d.files[0])?d.files[0].id:null;
+}
+
+async function loadFromDrive(){
+  isSyncing=true;setDriveStatus("syncing","Loading…");
+  try{
+    let fid=driveFileIds[S.fy]||await findDriveFile(S.fy);
+    if(fid){
+      driveFileIds[S.fy]=fid;
+      const r=await driveReq(`files/${fid}?alt=media`);
+      if(r&&r.ok){
+        const d=await r.json();
+        S.active=d.active||{};S.data=d.data||{};
+        saveLocal();
+        setDriveStatus("ok",`Synced ${new Date().toLocaleTimeString()}`);
+      }
+    } else {
+      setDriveStatus("ok","No existing data in Drive — will create on first save");
+    }
+  } catch(e){
+    setDriveStatus("err","Load failed — using local data");
+    loadLocal(S.fy);
+  }
+  isSyncing=false;
+  render();
+}
+
+async function saveToDrive(){
+  if(!gToken){saveLocal();showMsg("Saved locally");return;}
+  saveLocal();
+  isSyncing=true;setDriveStatus("syncing","Saving…");
+  try{
+    const payload=JSON.stringify({fy:S.fy,active:S.active,data:S.data,updated:new Date().toISOString()});
+    let fid=driveFileIds[S.fy]||await findDriveFile(S.fy);
+    if(fid){
+      // Update existing file
+      const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media`,{
+        method:"PATCH",
+        headers:{Authorization:`Bearer ${gToken}`,"Content-Type":"application/json"},
+        body:payload
+      });
+      if(!r.ok)throw new Error("Update failed");
+    } else {
+      // Create new file (multipart)
+      const meta=JSON.stringify({name:driveName(S.fy),mimeType:"application/json"});
+      const boundary="llp_boundary_"+Date.now();
+      const body=`--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+      const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
+        method:"POST",
+        headers:{Authorization:`Bearer ${gToken}`,"Content-Type":`multipart/related; boundary=${boundary}`},
+        body
+      });
+      if(!r.ok)throw new Error("Create failed");
+      const d=await r.json();
+      driveFileIds[S.fy]=d.id;
+    }
+    setDriveStatus("ok",`Saved ${new Date().toLocaleTimeString()}`);
+    showMsg("Saved to Drive ✓");
+  }catch(e){
+    setDriveStatus("err","Save failed — stored locally");
+    showMsg("Drive save failed — stored locally",true);
+  }
+  isSyncing=false;
+}
+
+function scheduleSave(){
+  saveLocal();
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveToDrive,2500);
+}
+
+function showMsg(msg,err=false){
+  const el=document.getElementById("asmsg");
+  if(!el)return;
+  el.textContent=msg;el.className="autosave"+(err?" err":"");
+  setTimeout(()=>{el.textContent="";el.className="autosave";},3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// DATA HELPERS
+// ═══════════════════════════════════════════════════════
+function isAct(id){return S.active[id]!==false;}
+function setAct(id,v){S.active[id]=v;scheduleSave();render();}
+function pkey(item,mi){
+  if(item.freq==="Monthly"||item.freq==="Event-based")return String(mi);
+  if(item.freq==="Quarterly")return QM[mi];
+  return"FY";
+}
+function gd(id,p){return S.data[`${id}-${p}`]||{status:"pending",dateFiled:"",doc:"",notes:""};}
+function sd(id,p,f,v){
+  const k=`${id}-${p}`;
+  if(!S.data[k])S.data[k]={status:"pending",dateFiled:"",doc:"",notes:""};
+  S.data[k][f]=v;scheduleSave();
+  if(f==="status"||f==="dateFiled")render();
+}
+
+// ═══════════════════════════════════════════════════════
+// DATES
+// ═══════════════════════════════════════════════════════
+function offToDate(fyS,off,day){const tot=off+3;return new Date(fyS+Math.floor(tot/12),tot%12,day);}
+function getDue(item,period){
+  const fys=fyStart(S.fy);
+  if(item.freq==="Monthly")return offToDate(fys,parseInt(period),item.dueDay);
+  if(item.freq==="Quarterly"){const qi=QI[period];const[o,d]=item.qd[qi];return offToDate(fys,o,d);}
+  if(item.freq==="Annual")return offToDate(fys,item.dueOff,item.dueDay);
+  return null;
+}
+function today0(){const t=new Date();t.setHours(0,0,0,0);return t;}
+function diff(d){if(!d)return null;return Math.floor((d-today0())/86400000);}
+function rowCls(item,period,data){
+  if(!isAct(item.id)||data.status==="na")return"r-na";
+  if(data.status==="done"){
+    if(data.dateFiled){const dd=getDue(item,period);if(dd&&new Date(data.dateFiled)>dd)return"r-late";}
+    return"r-done";
+  }
+  const dd=getDue(item,period);const df=diff(dd);
+  if(df===null)return"";
+  if(df<0)return"r-over";
+  if(df<=7)return"r-soon";
+  return"";
+}
+function dueDisp(item,period){
+  const dd=getDue(item,period);
+  if(!dd)return{text:item.dueNote||"On trigger",cls:"d-nor",sub:""};
+  const df=diff(dd);const ds=dd.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+  if(df===null)return{text:item.dueNote||ds,cls:"d-nor",sub:""};
+  if(df<0)return{text:ds,cls:"d-ovr",sub:`${Math.abs(df)} day${Math.abs(df)===1?"":"s"} ago`};
+  if(df===0)return{text:ds,cls:"d-son",sub:"Due today!"};
+  if(df<=7)return{text:ds,cls:"d-son",sub:`In ${df} day${df===1?"":"s"}`};
+  return{text:ds,cls:"d-nor",sub:""};
+}
+function ssCls(s){return s==="done"?"ss-done":s==="inprog"?"ss-inprog":s==="na"?"ss-na":"";}
+
+// ═══════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════
+function visItems(mi){
+  return ITEMS.filter(item=>{
+    if(S.fFreq!=="All"&&item.freq!==S.fFreq)return false;
+    if(S.fCat!=="All"&&item.cat!==S.fCat)return false;
+    if(S.hideNA&&!isAct(item.id))return false;
+    if(item.freq==="Monthly"||item.freq==="Quarterly"||item.freq==="Event-based")return true;
+    if(item.freq==="Annual")return item.dueOff===mi;
+    return false;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER — MONTH
+// ═══════════════════════════════════════════════════════
+function renderMonth(){
+  const mi=S.mi;
+  const items=visItems(mi);
+  const fo=["Monthly","Quarterly","Annual","Event-based"];
+  const g={};fo.forEach(f=>g[f]=[]);
+  items.forEach(i=>{if(g[i.freq])g[i.freq].push(i);});
+  const ovd=overdueOther(mi);
+  let html=`<div class="mnav">${rMNav()}</div>
+  <div class="stats">${rStats(items,mi)}</div>
+  <div class="fbar">${rFilters()}</div>`;
+  if(ovd.length){
+    html+=`<div class="attn">⚠ ${ovd.length} item${ovd.length>1?"s":""} from other periods overdue: 
+    ${ovd.map(x=>`<strong>${x.name}</strong> (${x.lab})`).join(", ")} — 
+    <a onclick="setView('year')">see year overview →</a></div>`;
+  }
+  html+=`<div class="twrap"><table>
+  <thead><tr>
+    <th style="width:20%">Compliance / filing</th>
+    <th style="width:8%">Form</th>
+    <th style="width:8%">Category</th>
+    <th style="width:12%">Due date</th>
+    <th style="width:9%">Status</th>
+    <th style="width:10%">Date filed</th>
+    <th style="width:14%">Doc / ref link</th>
+    <th style="width:11%">Notes</th>
+    <th style="width:4%;text-align:center">Active</th>
+  </tr></thead><tbody>`;
+  let any=false;
+  fo.forEach(freq=>{
+    if(!g[freq]||!g[freq].length)return;
+    html+=`<tr class="sec-row"><td colspan="9">${freq} filings</td></tr>`;
+    g[freq].forEach(item=>{
+      any=true;
+      const p=pkey(item,mi);const d=gd(item.id,p);const rc=rowCls(item,p,d);const dd=dueDisp(item,p);const sc=ssCls(d.status);
+      html+=`<tr class="${rc}">
+        <td><div class="iname">${h(item.name)}</div><div class="isub">${h(item.sub)}</div></td>
+        <td><span class="ftag">${item.form}</span></td>
+        <td><span class="cbadge">${item.cat}</span></td>
+        <td><div class="${dd.cls}">${dd.text}</div>${dd.sub?`<div class="dsub">${dd.sub}</div>`:""}</td>
+        <td><select class="ssel ${sc}" onchange="sd(${item.id},'${p}','status',this.value);this.className='ssel '+ssCls(this.value)">
+          <option value="pending" ${d.status==="pending"?"selected":""}>Pending</option>
+          <option value="inprog"  ${d.status==="inprog" ?"selected":""}>In progress</option>
+          <option value="done"    ${d.status==="done"   ?"selected":""}>Done ✓</option>
+          <option value="na"      ${d.status==="na"     ?"selected":""}>N/A</option>
+        </select></td>
+        <td><input type="date" class="dinput" value="${h(d.dateFiled)}" onchange="sd(${item.id},'${p}','dateFiled',this.value)"></td>
+        <td><input type="text" class="tinput doc" placeholder="Paste link or ref no." value="${h(d.doc)}" onchange="sd(${item.id},'${p}','doc',this.value)"></td>
+        <td><input type="text" class="tinput" placeholder="ARN, challan no., remarks…" value="${h(d.notes)}" onchange="sd(${item.id},'${p}','notes',this.value)"></td>
+        <td class="act-cell"><label class="mtog">
+          <input type="checkbox" ${isAct(item.id)?"checked":""} onchange="setAct(${item.id},this.checked)">
+          <span class="mslider"></span>
+        </label></td>
+      </tr>`;
+    });
+  });
+  if(!any)html+=`<tr><td colspan="9" class="empty">No filings match the current filters for this month.</td></tr>`;
+  html+=`</tbody></table></div>
+  <div class="legend">
+    <div class="li"><div class="ls ls-ovr"></div>Past due (unfiled)</div>
+    <div class="li"><div class="ls ls-son"></div>Due within 7 days</div>
+    <div class="li"><div class="ls ls-don"></div>Filed on time</div>
+    <div class="li"><div class="ls ls-lat"></div>Filed late (after due date)</div>
+    <div class="li"><div class="ls ls-na"></div>Inactive / not applicable</div>
+  </div>`;
+  document.getElementById("main").innerHTML=html;
+}
+
+function overdueOther(curMi){
+  const t=today0();const res=[];
+  ITEMS.forEach(item=>{
+    if(!isAct(item.id))return;
+    if(item.freq==="Monthly"){
+      for(let m=0;m<12;m++){
+        if(m===curMi)continue;
+        const d=gd(item.id,String(m));
+        if(d.status==="done"||d.status==="na")continue;
+        const dd=getDue(item,String(m));
+        if(dd&&dd<t){res.push({name:item.name,lab:MN[m]+" "+item.dueDay});break;}
+      }
+    }else if(item.freq==="Quarterly"){
+      ["Q1","Q2","Q3","Q4"].forEach(q=>{
+        if(QM[curMi]===q)return;
+        const d=gd(item.id,q);
+        if(d.status==="done"||d.status==="na")return;
+        const dd=getDue(item,q);
+        if(dd&&dd<t)res.push({name:item.name,lab:`${q} (${item.qdl[QI[q]]})`});
+      });
+    }
+  });
+  return res.slice(0,5);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER — YEAR
+// ═══════════════════════════════════════════════════════
+function renderYear(){
+  const items=ITEMS.filter(item=>{
+    if(S.fFreq!=="All"&&item.freq!==S.fFreq)return false;
+    if(S.fCat!=="All"&&item.cat!==S.fCat)return false;
+    if(S.hideNA&&!isAct(item.id))return false;
+    return true;
+  });
+  const fo=["Monthly","Quarterly","Annual","Event-based"];
+  const g={};fo.forEach(f=>g[f]=[]);
+  items.forEach(i=>{if(g[i.freq])g[i.freq].push(i);});
+  const qRow=MN.map((_,i)=>{
+    const ql=i===0?"←Q1":i===2?"→|":i===3?"←Q2":i===5?"→|":i===6?"←Q3":i===8?"→|":i===9?"←Q4":i===11?"→|":"→";
+    return`<th class="qlbl ${(i===3||i===6||i===9)?"qsep":""}">${ql}</th>`;
+  }).join("");
+  let html=`<div class="stats">${rYStats()}</div>
+  <div class="fbar">${rFilters()}</div>
+  <div class="ywrap"><table class="ytbl">
+  <thead>
+    <tr><th class="yitem-th">Compliance</th><th class="yform-th">Form</th>
+    ${MN.map((_,i)=>`<th class="${(i===3||i===6||i===9)?"qsep":""}" style="width:44px">${MN[i]}</th>`).join("")}
+    </tr>
+    <tr><th class="qlbl yitem-th">Frequency</th><th class="qlbl yform-th"></th>${qRow}</tr>
+  </thead><tbody>`;
+  fo.forEach(freq=>{
+    if(!g[freq]||!g[freq].length)return;
+    html+=`<tr class="ysec"><td colspan="14">${freq}</td></tr>`;
+    g[freq].forEach(item=>{
+      const na=!isAct(item.id);
+      html+=`<tr class="${na?"yr-na":""}">
+        <td class="yi" title="${h(item.name)} — ${h(item.sub)}">${h(item.name)}</td>
+        <td class="yf">${item.form}</td>
+        ${MN.map((_,mi)=>hCell(item,mi)).join("")}
+      </tr>`;
+    });
+  });
+  html+=`</tbody></table></div>
+  <div class="legend" style="margin-top:10px">
+    <div class="li"><div class="hc hdon" style="width:16px;height:12px;font-size:9px">✓</div>Done</div>
+    <div class="li"><div class="hc hprg" style="width:16px;height:12px;font-size:9px">~</div>In progress</div>
+    <div class="li"><div class="hc hovr" style="width:16px;height:12px;font-size:9px">!</div>Overdue</div>
+    <div class="li"><div class="hc hson" style="width:16px;height:12px;font-size:9px">•</div>Due soon</div>
+    <div class="li"><div class="hc hlat" style="width:16px;height:12px;font-size:9px">L</div>Filed late</div>
+    <div class="li"><div class="hc hpend" style="width:16px;height:12px"></div>Pending</div>
+    <div class="li" style="font-style:italic;color:#94a3b8">Click any cell to jump to that month</div>
+  </div>`;
+  document.getElementById("main").innerHTML=html;
+}
+
+function hCell(item,mi){
+  const sep=(mi===3||mi===6||mi===9)?"qsep":"";
+  if(item.freq==="Annual"&&item.dueOff!==mi)return`<td class="${sep}" style="text-align:center"><div class="hc hnone">·</div></td>`;
+  const p=pkey(item,mi);const d=gd(item.id,p);const dd=getDue(item,p);const df=diff(dd);
+  let cls,lbl;
+  if(!isAct(item.id)||d.status==="na"){cls="hna";lbl="–";}
+  else if(d.status==="done"){
+    if(d.dateFiled&&dd&&new Date(d.dateFiled)>dd){cls="hlat";lbl="L";}
+    else{cls="hdon";lbl="✓";}
+  }else if(d.status==="inprog"){
+    cls=(df!==null&&df<0)?"hovr":(df!==null&&df<=7)?"hson":"hprg";lbl="~";
+  }else{
+    if(df!==null&&df<0){cls="hovr";lbl="!";}
+    else if(df!==null&&df<=7){cls="hson";lbl="•";}
+    else{cls="hpend";lbl="";}
+  }
+  const tip=`${item.name} | ${MN[mi]}${dd?" — due "+dd.toLocaleDateString("en-IN",{day:"numeric",month:"short"}):""}`;
+  return`<td class="${sep}" style="text-align:center"><div class="hc ${cls}" onclick="selectMonth(${mi})" title="${h(tip)}">${lbl}</div></td>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// SHARED RENDER HELPERS
+// ═══════════════════════════════════════════════════════
+function rMNav(){
+  const cmi=currFYMi();const cfy=currFY();
+  return MN.map((m,i)=>{
+    const isnow=i===cmi&&S.fy===cfy;
+    const dot=mDot(i);
+    return`<button class="mchip${i===S.mi&&S.view==="month"?" on":""}${isnow?" today":""}" onclick="selectMonth(${i})">${m}${dot?`<span class="dot ${dot}"></span>`:""}</button>`;
+  }).join("");
+}
+function mDot(mi){
+  const items=visItems(mi);const t=today0();let over=false,soon=false,allDone=true,hasAny=false;
+  items.forEach(item=>{
+    if(!isAct(item.id))return;
+    const p=pkey(item,mi);const d=gd(item.id,p);
+    if(d.status==="na")return;hasAny=true;
+    if(d.status!=="done")allDone=false;
+    if(d.status==="done")return;
+    const dd=getDue(item,p);const df=diff(dd);
+    if(df!==null&&df<0)over=true;else if(df!==null&&df<=7)soon=true;
+  });
+  if(!hasAny)return null;if(allDone)return"d-done";if(over)return"d-over";if(soon)return"d-soon";return"d-part";
+}
+function rStats(items,mi){
+  let don=0,prg=0,son=0,ovr=0;
+  items.forEach(item=>{
+    if(!isAct(item.id))return;
+    const p=pkey(item,mi);const d=gd(item.id,p);
+    if(d.status==="na")return;if(d.status==="done"){don++;return;}if(d.status==="inprog")prg++;
+    const dd=getDue(item,p);const df=diff(dd);
+    if(df!==null&&df<0)ovr++;else if(df!==null&&df<=7)son++;
+  });
+  const tot=items.filter(i=>isAct(i.id)).length;
+  return`<div class="scard"><div class="slbl">This month</div><div class="snum c-tot">${tot}</div></div>
+  <div class="scard"><div class="slbl">Completed</div><div class="snum c-don">${don}</div></div>
+  <div class="scard"><div class="slbl">In progress</div><div class="snum c-prg">${prg}</div></div>
+  <div class="scard"><div class="slbl">Due soon</div><div class="snum c-son">${son}</div></div>
+  <div class="scard"><div class="slbl">Overdue</div><div class="snum c-ovr">${ovr}</div></div>`;
+}
+function rYStats(){
+  let tot=0,don=0,ovr=0,prg=0;
+  ITEMS.forEach(item=>{
+    if(!isAct(item.id))return;
+    const periods=item.freq==="Monthly"?MN.map((_,i)=>String(i)):item.freq==="Quarterly"?["Q1","Q2","Q3","Q4"]:item.freq==="Annual"?["FY"]:MN.map((_,i)=>String(i));
+    periods.forEach(p=>{
+      const d=gd(item.id,p);if(d.status==="na")return;
+      if(item.freq==="Event-based"&&d.status==="pending")return;
+      tot++;if(d.status==="done"){don++;return;}if(d.status==="inprog")prg++;
+      const dd=getDue(item,p);if(dd&&diff(dd)<0)ovr++;
+    });
+  });
+  const pct=tot>0?Math.round(don/tot*100):0;
+  return`<div class="scard"><div class="slbl">Total periods</div><div class="snum c-tot">${tot}</div></div>
+  <div class="scard"><div class="slbl">Completed</div><div class="snum c-don">${don}</div></div>
+  <div class="scard"><div class="slbl">In progress</div><div class="snum c-prg">${prg}</div></div>
+  <div class="scard"><div class="slbl">Overdue</div><div class="snum c-ovr">${ovr}</div></div>
+  <div class="scard"><div class="slbl">% complete</div><div class="snum c-don">${pct}%</div></div>`;
+}
+function rFilters(){
+  const fc=FREQS.map(f=>`<button class="fc${S.fFreq===f?" on":""}" onclick="S.fFreq='${f}';render()">${f}</button>`).join("");
+  const cc=CATS.map(c=>`<button class="fc${S.fCat===c?" on":""}" onclick="S.fCat='${c}';render()">${c}</button>`).join("");
+  return`<div class="fchips">${fc}</div><div class="fsep"></div><div class="fchips">${cc}</div>
+  <div class="fright"><span class="flbl">Hide inactive</span>
+  <label class="tswitch"><input type="checkbox" ${S.hideNA?"checked":""} onchange="S.hideNA=this.checked;render()"><span class="tslider"></span></label></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════════════
+function render(){if(S.view==="month")renderMonth();else renderYear();}
+function setView(v){
+  S.view=v;
+  document.getElementById("tab-m").classList.toggle("on",v==="month");
+  document.getElementById("tab-y").classList.toggle("on",v==="year");
+  render();
+}
+function selectMonth(mi){S.mi=mi;S.view="month";document.getElementById("tab-m").classList.add("on");document.getElementById("tab-y").classList.remove("on");render();}
+async function changeFY(fy){
+  S.fy=fy;S.mi=fy===currFY()?currFYMi():0;
+  loadLocal(fy);render();
+  if(gToken){setDriveStatus("syncing","Loading…");await loadFromDrive();}
+}
+
+// ═══════════════════════════════════════════════════════
+// ARCHIVE / IMPORT
+// ═══════════════════════════════════════════════════════
+function archiveFY(){
+  const payload={fy:S.fy,exported:new Date().toISOString(),active:S.active,data:S.data};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=`LLP_Compliance_FY${S.fy}.json`;a.click();
+  URL.revokeObjectURL(url);
+}
+function loadArchive(){document.getElementById("finput").click();}
+function handleFile(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      S.fy=d.fy;S.active=d.active||{};S.data=d.data||{};
+      saveLocal();
+      const sel=document.getElementById("fysel");
+      let found=false;
+      for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===d.fy){sel.selectedIndex=i;found=true;break;}}
+      if(!found){const o=document.createElement("option");o.value=d.fy;o.text=d.fy+" (archived)";sel.add(o);sel.value=d.fy;}
+      render();showMsg(`FY ${d.fy} imported ✓`);
+    }catch(err){showMsg("Import failed: "+err.message,true);}
+    inp.value="";
+  };
+  r.readAsText(f);
+}
+
+// ═══════════════════════════════════════════════════════
+// OFFLINE DETECTION
+// ═══════════════════════════════════════════════════════
+window.addEventListener("online",()=>{
+  document.getElementById("offlineBar").classList.remove("show");
+  if(gToken)saveToDrive();
+});
+window.addEventListener("offline",()=>{document.getElementById("offlineBar").classList.add("show");});
+
+// ═══════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function h(s){return(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+document.getElementById("fysel").value=S.fy;
+if(!hasClientId())document.getElementById("setupBanner").style.display="flex";
+updateAuthUI();
+loadLocal(S.fy);
+render();
+</script>
+</body>
+</html>
